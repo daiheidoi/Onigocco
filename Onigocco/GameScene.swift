@@ -14,6 +14,14 @@ class GameScene: SKScene {
     /// プレイヤー
     let player = SKShapeNode(circleOfRadius: 10)
     
+    /// 複数の敵
+    var enemies = [SKShapeNode]()
+    
+    /// タイマー
+    var timer : Timer?
+    
+    /// 前回インターバル
+    var prevTime: TimeInterval = 0
     
     /// View置かれた際に呼ばれるメソッド
     ///
@@ -25,6 +33,12 @@ class GameScene: SKScene {
         
         /// シーンにaddChild
         addChild(player)
+        
+        /// 敵生成タイマー設定
+        setCreateTimer()
+        
+        /// Gravityを初期化しておく
+        physicsWorld.gravity = CGVector()
     }
     
     
@@ -50,7 +64,63 @@ class GameScene: SKScene {
             path.addLine(to: CGPoint(x: point.x - player.position.x, y: point.y - player.position.y))
             
             /// followアクション追加
-            player.run(SKAction.follow(path, speed: 50.0))
+            player.run(SKAction.follow(path, speed: 10.0))
         }
+    }
+    
+    /// タイマー生成、設定
+    private func setCreateTimer() {
+        /// タイマー初期化
+        timer?.invalidate()
+        
+        /// タイマー設定
+        timer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(GameScene.createEnemy), userInfo: nil, repeats: true)
+        
+        /// fire
+        timer?.fire()
+    }
+    
+    /// 敵生成
+    @objc private func createEnemy() {
+        
+        /// 敵生成
+        let enemy = SKShapeNode(circleOfRadius: 10)
+        enemy.position.x = size.width / 2
+        enemy.fillColor = UIColor.red
+        enemy.physicsBody = SKPhysicsBody(circleOfRadius: enemy.frame.width / 2)
+        addChild(enemy)
+        
+        /// 監視配列に追加
+        enemies.append(enemy)
+    }
+    
+    
+    /// 更新処理メソッド(FPSごとに呼ばれる)
+    ///
+    /// - Parameter currentTime: インターバル
+    override func update(_ currentTime: TimeInterval) {
+        
+        if prevTime == 0 {
+            /// 時間保持(初期化時)
+            prevTime = currentTime
+        }
+        
+        /// プレイヤの位置監視(一秒ごと)
+        if Int(currentTime) != Int(prevTime) {
+            enemies.forEach {
+                /// 一旦アクション全削除
+                $0.removeAllActions()
+                
+                /// 追跡パス生成
+                let path = CGMutablePath()
+                path.move(to: CGPoint())
+                path.addLine(to: CGPoint(x: player.position.x - $0.position.x, y: player.position.y - $0.position.y))
+                
+                /// アクション追加
+                $0.run(SKAction.follow(path, speed: 20.0))
+            }
+        }
+        /// 保持時間更新
+        prevTime = currentTime
     }
 }
