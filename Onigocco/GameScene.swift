@@ -16,7 +16,7 @@ private struct CollisionType {
     static let enemy: UInt32 = 1 << 1 // 010
 }
 
-class GameScene: SKScene, SKPhysicsContactDelegate {
+class GameScene: SKScene {
     
     /// プレイヤー
     let player = SKShapeNode(circleOfRadius: 10)
@@ -35,6 +35,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     /// ゲーム終了フラグ
     var isGameFinished = false
+    
+    /// playerエージェント
+    let playerAgent = GKAgent2D()
+    
+    /// エージェントシステム
+    let agentSystem = GKComponentSystem(componentClass: GKAgent2D.self)
+    
+    /// enemyエージェント
+    var enemyAgents = [GKAgent2D]()
     
     /// View置かれた際に呼ばれるメソッド
     ///
@@ -112,6 +121,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         enemy.physicsBody?.contactTestBitMask = CollisionType.player
         addChild(enemy)
         
+        let anemyAgent = GKAgent2D()
+        anemyAgent.maxAcceleration = 50
+        anemyAgent.maxSpeed = 300
+        anemyAgent.position = vector_float2(x: Float(enemy.position.x), y: Float(enemy.position.y))
+        anemyAgent.delegate = self
+        
+        /// ゴールをplayerエージェントに設定
+        anemyAgent.behavior = GKBehavior(goals: [
+            GKGoal(toSeekAgent: playerAgent),
+            ])
+        agentSystem.addComponent(anemyAgent)
+        enemyAgents.append(anemyAgent)
+        
         /// 監視配列に追加
         enemies.append(enemy)
     }
@@ -128,26 +150,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             startTime = currentTime
         }
         
-        /// プレイヤの位置監視(一秒ごと)
-        if Int(currentTime) != Int(prevTime) {
-            enemies.forEach {
-                /// 一旦アクション全削除
-                $0.removeAllActions()
-                
-                /// 追跡パス生成
-                let path = CGMutablePath()
-                path.move(to: CGPoint())
-                path.addLine(to: CGPoint(x: player.position.x - $0.position.x, y: player.position.y - $0.position.y))
-                
-                /// アクション追加
-                $0.run(SKAction.follow(path, speed: 150.0))
-            }
-        }
+        /// エージョントシステムを用いて追跡
+        /// 差分更新処理
+        agentSystem.update(deltaTime: currentTime - prevTime)
+        playerAgent.position = vector_float2(x: Float(player.position.x), y: Float(player.position.y))
         
         /// 保持時間更新
         prevTime = currentTime
     }
     
+    
+    
+}
+
+// MARK: - SKPhysicsContactDelegate
+extension GameScene: SKPhysicsContactDelegate {
     
     /// 衝突監視メソッド
     ///
@@ -168,6 +185,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             label.fontSize = 80
             label.position = CGPoint(x: 0, y: -100)
             addChild(label)
+        }
+    }
+}
+
+// MARK: - GKAgentDelegate
+extension GameScene: GKAgentDelegate {
+    
+    /// エージェント更新
+    ///
+    /// - Parameter agent: agent
+    func agentDidUpdate(_ agent: GKAgent) {
+        if let agent = agent as? GKAgent2D, let index = enemyAgents.index(where: { $0 == agent }) {
+            let enemy = enemies[index]
+            enemy.position = CGPoint(x: CGFloat(agent.position.x), y: CGFloat(agent.position.y))
         }
     }
 }
