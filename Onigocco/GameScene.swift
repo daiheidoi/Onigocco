@@ -23,7 +23,34 @@ class GameScene: SKScene {
         /// プレイヤー黄色にしておく
         player.fillColor = UIColor.yellow;
         
+        /// シーンにaddChild
         addChild(player)
     }
     
+    
+    /// タッチ終了時に呼ばれるメソッド
+    ///
+    /// - Parameters:
+    ///   - touches: タッチのインスタンス(複数あり)
+    ///   - event: イベント
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        
+        /// タッチのインスタンス文for
+        touches.forEach {
+            
+            /// 位置取得
+            let point = $0.location(in: self)
+            
+            /// playerが持つアクションを一旦全削
+            player.removeAllActions()
+            
+            /// タッチ位置と現playerのパス構築
+            let path = CGMutablePath()
+            path.move(to: CGPoint())
+            path.addLine(to: CGPoint(x: point.x - player.position.x, y: point.y - player.position.y))
+            
+            /// followアクション追加
+            player.run(SKAction.follow(path, speed: 50.0))
+        }
+    }
 }
