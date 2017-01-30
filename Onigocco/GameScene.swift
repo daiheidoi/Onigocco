@@ -41,10 +41,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     /// - Parameter view: ビュー
     override func didMove(to view: SKView) {
         
+        self.physicsWorld.contactDelegate = self
+        
         /// プレイヤー黄色にしておく
         player.fillColor = UIColor.yellow;
+        
         /// 衝突判定用bit追加
+        player.physicsBody = SKPhysicsBody(circleOfRadius: player.frame.width / 2)
         player.physicsBody?.categoryBitMask = CollisionType.player
+        player.physicsBody?.contactTestBitMask = CollisionType.enemy
         /// シーンにaddChild
         addChild(player)
         
@@ -52,7 +57,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         setCreateTimer()
         
         /// Gravityを初期化しておく
-        physicsWorld.gravity = CGVector()
+        self.physicsWorld.gravity = CGVector()
     }
     
     
@@ -104,6 +109,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         enemy.physicsBody = SKPhysicsBody(circleOfRadius: enemy.frame.width / 2)
         /// 衝突判定用bit追加
         enemy.physicsBody?.categoryBitMask = CollisionType.enemy
+        enemy.physicsBody?.contactTestBitMask = CollisionType.player
         addChild(enemy)
         
         /// 監視配列に追加
