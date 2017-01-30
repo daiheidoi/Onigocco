@@ -9,7 +9,14 @@
 import SpriteKit
 import GameplayKit
 
-class GameScene: SKScene {
+
+/// 衝突判定bit
+private struct CollisionType {
+    static let player: UInt32 = 1 << 0 // 001
+    static let enemy: UInt32 = 1 << 1 // 010
+}
+
+class GameScene: SKScene, SKPhysicsContactDelegate {
     
     /// プレイヤー
     let player = SKShapeNode(circleOfRadius: 10)
@@ -23,6 +30,12 @@ class GameScene: SKScene {
     /// 前回インターバル
     var prevTime: TimeInterval = 0
     
+    /// 記録時間
+    var startTime: TimeInterval = 0
+    
+    /// ゲーム終了フラグ
+    var isGameFinished = false
+    
     /// View置かれた際に呼ばれるメソッド
     ///
     /// - Parameter view: ビュー
@@ -30,7 +43,8 @@ class GameScene: SKScene {
         
         /// プレイヤー黄色にしておく
         player.fillColor = UIColor.yellow;
-        
+        /// 衝突判定用bit追加
+        player.physicsBody?.categoryBitMask = CollisionType.player
         /// シーンにaddChild
         addChild(player)
         
@@ -64,7 +78,7 @@ class GameScene: SKScene {
             path.addLine(to: CGPoint(x: point.x - player.position.x, y: point.y - player.position.y))
             
             /// followアクション追加
-            player.run(SKAction.follow(path, speed: 10.0))
+            player.run(SKAction.follow(path, speed: 200.0))
         }
     }
     
@@ -74,7 +88,7 @@ class GameScene: SKScene {
         timer?.invalidate()
         
         /// タイマー設定
-        timer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(GameScene.createEnemy), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(timeInterval: 2.0, target: self, selector: #selector(GameScene.createEnemy), userInfo: nil, repeats: true)
         
         /// fire
         timer?.fire()
@@ -88,6 +102,8 @@ class GameScene: SKScene {
         enemy.position.x = size.width / 2
         enemy.fillColor = UIColor.red
         enemy.physicsBody = SKPhysicsBody(circleOfRadius: enemy.frame.width / 2)
+        /// 衝突判定用bit追加
+        enemy.physicsBody?.categoryBitMask = CollisionType.enemy
         addChild(enemy)
         
         /// 監視配列に追加
@@ -103,6 +119,7 @@ class GameScene: SKScene {
         if prevTime == 0 {
             /// 時間保持(初期化時)
             prevTime = currentTime
+            startTime = currentTime
         }
         
         /// プレイヤの位置監視(一秒ごと)
@@ -117,10 +134,34 @@ class GameScene: SKScene {
                 path.addLine(to: CGPoint(x: player.position.x - $0.position.x, y: player.position.y - $0.position.y))
                 
                 /// アクション追加
-                $0.run(SKAction.follow(path, speed: 20.0))
+                $0.run(SKAction.follow(path, speed: 150.0))
             }
         }
+        
         /// 保持時間更新
         prevTime = currentTime
+    }
+    
+    
+    /// 衝突監視メソッド
+    ///
+    /// - Parameter contact: コンタクト
+    func didBegin(_ contact: SKPhysicsContact) {
+        
+        let player_enemy = CollisionType.player | CollisionType.enemy // 110
+        
+        /// 衝突ノードの和
+        let check = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+        
+        /// 判定
+        if player_enemy == check && !isGameFinished {
+            /// ゲーム終了処理
+            isGameFinished = true
+            timer?.invalidate()
+            let label = SKLabelNode(text: "記録:\(Int(prevTime - startTime))秒")
+            label.fontSize = 80
+            label.position = CGPoint(x: 0, y: -100)
+            addChild(label)
+        }
     }
 }
